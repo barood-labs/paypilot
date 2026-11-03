@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><title>PayPilot</title>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script></head>
+<body style="font-family:sans-serif;max-width:900px;margin:auto"><h1>PayPilot</h1><p>Type a job request; AI schedules it and creates a PayPal sandbox order.</p>
+<input id="t" style="width:70%" value="Lawn mowing 2 hours on Friday for $80"><button onclick="go()">Book</button>
+<div id="g" style="height:300px;margin-top:1em"></div>
+<script>
+const api = agGrid.createGrid(document.getElementById('g'), {columnDefs:[{field:'id'},{field:'service',flex:2},{field:'day'},{field:'hours'},{field:'amount'},{field:'order.status',headerName:'PayPal'},{field:'order.approve',headerName:'Pay link'}],rowData:[]});
+async function load(){api.setGridOption('rowData', await (await fetch('/api/bookings')).json())}
+async function go(){await fetch('/api/book',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t.value})});load()}
+load();
+</script></body></html>
