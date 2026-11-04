@@ -10,11 +10,8 @@ const title = b => `${b.paid ? '✔ PAID' : '⏳ $' + b.amount} · ${b.service} 
 const toLocalISO = d => { const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`; };
 
-function loadCss(href) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); }
-
 async function bryntum(el, { onMove }) {
   const { Calendar } = await import('/vendor/bryntum/calendar.module.js');
-  ['calendar.css', 'svalbard-light.css', 'fontawesome/css/fontawesome.css', 'fontawesome/css/solid.css'].forEach(f => loadCss('/vendor/bryntum/' + f));
   let syncing = false;
   const cal = new Calendar({
     appendTo: el, date: new Date(), mode: 'week', resources: RESOURCES, events: [],
