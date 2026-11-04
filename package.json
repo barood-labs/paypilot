@@ -1,1 +1,23 @@
-{"name":"paypilot","version":"0.1.0","type":"module","license":"MIT","scripts":{"start":"node server.js","test":"node test.js"},"dependencies":{"express":"^4.19.2"}}
+{
+  "name": "paypilot",
+  "version": "0.2.0",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "smoke": "node scripts/smoke-browser.mjs"
+  },
+  "dependencies": {
+    "@bryntum/calendar-trial": "^7.3.8",
+    "express": "^4.19.2"
+  },
+  "allowScripts": {
+    "@bryntum/calendar-trial@7.3.8": true,
+    "@bryntum/calendar-trial-lib@1.0.1": true
+  },
+  "description": "AI booking + payments agent for freelancers: plain English -> Bryntum Calendar -> PayPal pay link -> AG Grid board",
+  "engines": {
+    "node": ">=20"
+  }
+}

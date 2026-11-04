@@ -1,34 +1,96 @@
-// PayPilot: AI turns a plain-English job request into a scheduled booking + PayPal (sandbox) order.
+// PayPilot: an AI booking + payments agent for freelancers.
+// Plain-English job -> AI parse -> Bryntum Calendar slot -> PayPal Orders v2 pay link -> AG Grid paid/unpaid board.
 import express from 'express';
-const app = express(); app.use(express.json()); app.use(express.static('public'));
-const PP = 'https://api-m.sandbox.paypal.com';
-const bookings = [];
-export function parseRequest(text) { // rule-based fallback; swap in LLM via OPENAI_API_KEY
-  const amt = (text.match(/\$(\d+(?:\.\d{1,2})?)/) || text.match(/(\d+(?:\.\d{1,2})?)\s*(?:usd|dollars)/i) || [])[1] || '50';
-  const hrs = (text.match(/(\d+)\s*(?:h|hour)/i) || [])[1] || '1';
-  const day = (text.match(/(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today)/i) || [])[1] || 'tomorrow';
-  return { service: text.slice(0, 60), amount: Number(amt).toFixed(2), hours: Number(hrs), day: day.toLowerCase() };
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { loadEnv } from './lib/env.js';
+import { llmParse, parseRequest } from './lib/parse.js';
+import { createOrder, captureOrder, hasPayPal } from './lib/paypal.js';
+import { draftReminder } from './lib/agent.js';
+
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+loadEnv(process.env.ENV_FILE || path.join(ROOT, '.env'));
+
+const addHours = (date, start, hours) => {
+  const d = new Date(`${date}T${start}:00`); d.setMinutes(d.getMinutes() + Math.round(hours * 60));
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
+};
+const isPaid = b => b.order?.status === 'COMPLETED';
+
+export function createApp({ now = () => new Date() } = {}) {
+  const app = express();
+  const bookings = [];
+  let nextId = 1;
+  app.use(express.json({ limit: '20kb' }));
+  app.use(express.static(path.join(ROOT, 'public')));
+  // Bryntum Calendar trial build, served straight from the public npm package (@bryntum/calendar-trial).
+  app.use('/vendor/bryntum', express.static(path.join(ROOT, 'node_modules/@bryntum/calendar-trial')));
+  const baseUrl = req => process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+
+  const view = b => ({ ...b, paid: isPaid(b), startDate: `${b.date}T${b.start}:00`, endDate: addHours(b.date, b.start, b.hours) });
+  const find = id => bookings.find(b => b.id === Number(id));
+
+  async function book(text, req) {
+    const b = await llmParse(String(text || '').slice(0, 500), now());
+    b.id = nextId++; b.text = text; b.createdAt = now().toISOString();
+    b.order = await createOrder(b, { baseUrl: baseUrl(req) });
+    bookings.push(b); return view(b);
+  }
+
+  app.get('/api/config', (_q, res) => res.json({ paypal: hasPayPal() ? 'sandbox' : 'mock', ai: process.env.OPENAI_API_KEY ? 'llm' : 'rules' }));
+  app.post('/api/parse', (req, res) => res.json(parseRequest(String(req.body.text || ''), now())));
+  app.post('/api/book', async (req, res, next) => {
+    try { if (!String(req.body.text || '').trim()) return res.status(400).json({ error: 'text required' }); res.json(await book(req.body.text, req)); }
+    catch (e) { next(e); }
+  });
+  app.get('/api/bookings', (_q, res) => res.json(bookings.map(view)));
+  app.get('/api/summary', (_q, res) => {
+    const sum = f => bookings.filter(f).reduce((a, b) => a + Number(b.amount), 0).toFixed(2);
+    res.json({ count: bookings.length, paid: sum(isPaid), unpaid: sum(b => !isPaid(b)) });
+  });
+  // Drag/resize in the Bryntum Calendar lands here.
+  app.patch('/api/bookings/:id', (req, res) => {
+    const b = find(req.params.id); if (!b) return res.status(404).json({ error: 'not found' });
+    const { startDate, endDate } = req.body;
+    if (startDate) { b.date = startDate.slice(0, 10); b.start = startDate.slice(11, 16); }
+    if (startDate && endDate) b.hours = Math.max(0.25, (new Date(endDate) - new Date(startDate)) / 36e5);
+    res.json(view(b));
+  });
+  app.post('/api/bookings/:id/capture', async (req, res, next) => {
+    try { const b = find(req.params.id); if (!b) return res.status(404).json({ error: 'not found' });
+      const c = await captureOrder(b.order.id); b.order.status = c.status; b.paidAt = isPaid(b) ? now().toISOString() : undefined; res.json(view(b)); }
+    catch (e) { next(e); }
+  });
+  app.post('/api/bookings/:id/remind', async (req, res, next) => {
+    try { const b = find(req.params.id); if (!b) return res.status(404).json({ error: 'not found' });
+      if (isPaid(b)) return res.json({ text: null, skipped: 'already paid' });
+      const r = await draftReminder(b); b.reminders = (b.reminders || 0) + 1; res.json(r); }
+    catch (e) { next(e); }
+  });
+  app.post('/api/agent/chase', async (_q, res, next) => { // agent sweep: draft reminders for every unpaid booking
+    try { const out = []; for (const b of bookings.filter(x => !isPaid(x))) out.push({ id: b.id, ...(await draftReminder(b)) }); res.json(out); }
+    catch (e) { next(e); }
+  });
+  // PayPal redirects the buyer back here after approval (sandbox or mock page); we capture server-side.
+  app.get('/paypal/return', async (req, res, next) => {
+    try { const b = bookings.find(x => x.order?.id === req.query.token);
+      if (b) { const c = await captureOrder(b.order.id); b.order.status = c.status; b.paidAt = now().toISOString(); }
+      res.redirect('/?paid=' + encodeURIComponent(req.query.token || '')); }
+    catch (e) { next(e); }
+  });
+  app.post('/api/demo/seed', async (req, res) => {
+    const samples = ['Lawn mowing for Alice Chen 2h Friday at 10am $80', 'Deep clean for Marco Diaz 3 hours tomorrow at 1pm $120',
+      'Math tutoring for Priya 1h Wednesday at 5pm $45', 'Mount TV for Sam Lee 90 min Saturday at 11am $70'];
+    const out = []; for (const s of samples) out.push(await book(s, req));
+    res.json(out);
+  });
+  app.use((err, _q, res, _n) => { console.error(err); res.status(500).json({ error: err.message }); });
+  return app;
 }
-async function llmParse(text) {
-  if (!process.env.OPENAI_API_KEY) return parseRequest(text);
-  const r = await fetch((process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1') + '/chat/completions', { method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.OPENAI_API_KEY },
-    body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', response_format: { type: 'json_object' },
-      messages: [{ role: 'system', content: 'Extract JSON {service,amount,hours,day} from a job booking request. amount as string USD.' }, { role: 'user', content: text }] }) });
-  try { return JSON.parse((await r.json()).choices[0].message.content); } catch { return parseRequest(text); }
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  const port = process.env.PORT || 3000;
+  createApp().listen(port, () => console.log(`PayPilot on http://localhost:${port}  (PayPal: ${hasPayPal() ? 'sandbox' : 'mock'}, AI: ${process.env.OPENAI_API_KEY ? 'llm' : 'rules'})`));
 }
-async function ppToken() {
-  const id = process.env.PAYPAL_CLIENT_ID, sec = process.env.PAYPAL_CLIENT_SECRET; if (!id || !sec) return null;
-  const r = await fetch(PP + '/v1/oauth2/token', { method: 'POST', body: 'grant_type=client_credentials',
-    headers: { Authorization: 'Basic ' + Buffer.from(id + ':' + sec).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' } });
-  return (await r.json()).access_token;
-}
-async function createOrder(b) {
-  const t = await ppToken(); if (!t) return { id: 'MOCK-' + Date.now(), status: 'CREATED (mock: set PAYPAL_CLIENT_ID/SECRET)' };
-  const r = await fetch(PP + '/v2/checkout/orders', { method: 'POST', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ intent: 'CAPTURE', purchase_units: [{ description: b.service, amount: { currency_code: 'USD', value: b.amount } }] }) });
-  const j = await r.json(); return { id: j.id, status: j.status, approve: (j.links || []).find(l => l.rel === 'approve')?.href };
-}
-app.post('/api/book', async (req, res) => { const b = await llmParse(req.body.text || ''); b.order = await createOrder(b); b.id = bookings.length + 1; bookings.push(b); res.json(b); });
-app.get('/api/bookings', (_q, res) => res.json(bookings));
-if (process.argv[1].endsWith('server.js')) app.listen(process.env.PORT || 3000, () => console.log('PayPilot on :' + (process.env.PORT || 3000)));
+export { parseRequest };

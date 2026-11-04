@@ -1,11 +1,24 @@
-<!doctype html><html><head><meta charset="utf-8"><title>PayPilot</title>
-<script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script></head>
-<body style="font-family:sans-serif;max-width:900px;margin:auto"><h1>PayPilot</h1><p>Type a job request; AI schedules it and creates a PayPal sandbox order.</p>
-<input id="t" style="width:70%" value="Lawn mowing 2 hours on Friday for $80"><button onclick="go()">Book</button>
-<div id="g" style="height:300px;margin-top:1em"></div>
-<script>
-const api = agGrid.createGrid(document.getElementById('g'), {columnDefs:[{field:'id'},{field:'service',flex:2},{field:'day'},{field:'hours'},{field:'amount'},{field:'order.status',headerName:'PayPal'},{field:'order.approve',headerName:'Pay link'}],rowData:[]});
-async function load(){api.setGridOption('rowData', await (await fetch('/api/bookings')).json())}
-async function go(){await fetch('/api/book',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t.value})});load()}
-load();
-</script></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PayPilot — AI bookings that get paid</title>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/dist/ag-grid-community.min.js"></script>
+<link rel="stylesheet" href="/style.css"></head>
+<body>
+<header><h1>✈️ PayPilot</h1><span class="tag">AI bookings that get paid</span>
+  <span id="modes" class="badges"></span></header>
+<section class="composer">
+  <input id="t" aria-label="Job request" value="Lawn mowing for Alice Chen 2h Friday at 10am $80">
+  <button id="book" class="primary">Book + get paid</button>
+  <button id="seed">Load demo jobs</button>
+  <button id="chase">🤖 Chase unpaid</button>
+</section>
+<section class="stats"><div><b id="sCount">0</b> jobs</div><div class="ok">$<b id="sPaid">0.00</b> paid</div><div class="warn">$<b id="sUnpaid">0.00</b> outstanding</div>
+  <div id="calKind" class="muted"></div></section>
+<div id="toast" class="toast" hidden></div>
+<main>
+  <div id="cal" class="cal"></div>
+  <div id="grid" class="grid"></div>
+  <div id="reminders" class="reminders" hidden><h3>Agent-drafted reminders</h3><ul id="remList"></ul></div>
+</main>
+<footer>Sandbox / mock only — no real money moves. Calendar: Bryntum Calendar (trial). Grid: AG Grid Community. Payments: PayPal Orders v2.</footer>
+<script type="module" src="/app.js"></script>
+</body></html>
