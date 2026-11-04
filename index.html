@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PayPilot — AI bookings that get paid</title>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@36.2.0/dist/ag-grid-community.min.js"></script>
+<!-- Bryntum Calendar trial CSS (served from node_modules/@bryntum/calendar-trial) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@bryntum/calendar-trial@7.3.8/calendar.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@bryntum/calendar-trial@7.3.8/svalbard-light.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@bryntum/calendar-trial@7.3.8/fontawesome/css/fontawesome.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@bryntum/calendar-trial@7.3.8/fontawesome/css/solid.css">
+<link rel="stylesheet" href="./style.css"></head>
+<body>
+<header><h1>✈️ PayPilot</h1><span class="tag">AI bookings that get paid</span>
+  <span id="modes" class="badges"></span></header>
+<section class="composer">
+  <input id="t" aria-label="Job request" value="Lawn mowing for Alice Chen 2h Friday at 10am $80">
+  <button id="book" class="primary">Book + get paid</button>
+  <button id="seed">Load demo jobs</button>
+  <button id="chase">🤖 Chase unpaid</button>
+</section>
+<section class="stats"><div><b id="sCount">0</b> jobs</div><div class="ok">$<b id="sPaid">0.00</b> paid</div><div class="warn">$<b id="sUnpaid">0.00</b> outstanding</div>
+  <div id="calKind" class="muted"></div></section>
+<div id="toast" class="toast" hidden></div>
+<main>
+  <div id="cal" class="cal"></div>
+  <div id="grid" class="grid"></div>
+  <div id="reminders" class="reminders" hidden><h3>Agent-drafted reminders</h3><ul id="remList"></ul></div>
+</main>
+<footer>Hosted static demo: mock PayPal, rule-based parser, data stays in your browser (<a href="?reset">reset</a>). Sandbox / mock only — no real money moves. Calendar: Bryntum Calendar (trial). Grid: AG Grid Community. Payments: PayPal Orders v2.</footer>
+<script type="module" src="./static-backend.js"></script>
+<script type="module" src="./app.js"></script>
+</body></html>
