@@ -36,10 +36,13 @@ function showReminders(items) {
   $('reminders').hidden = !items.length;
   $('remList').innerHTML = items.map(r => `<li><b>#${r.id}</b> <small>(${esc(r.by)})</small> ${esc(r.text)}</li>`).join('');
 }
-$('book').onclick = async () => { const b = await api('/api/book', { method: 'POST', body: JSON.stringify({ text: $('t').value }) });
-  toast(`Booked ${b.service} for ${b.client} on ${b.date} ${b.start} — PayPal order ${b.order.id}`); refresh(); };
-$('seed').onclick = async () => { await api('/api/demo/seed', { method: 'POST' }); refresh(); };
-$('chase').onclick = async () => { const r = await api('/api/agent/chase', { method: 'POST' }); showReminders(r); toast(r.length ? `Drafted ${r.length} reminder(s)` : 'Everyone has paid 🎉'); };
+// Show the agent is working while the (possibly local, slower) LLM thinks.
+const busy = (btn, label, fn) => async () => { const old = btn.textContent; btn.disabled = true; btn.textContent = label;
+  try { await fn(); } catch (e) { toast('Error: ' + e.message); } finally { btn.disabled = false; btn.textContent = old; } };
+$('book').onclick = busy($('book'), '🤖 AI parsing…', async () => { const b = await api('/api/book', { method: 'POST', body: JSON.stringify({ text: $('t').value }) });
+  toast(`Booked ${b.service} for ${b.client} on ${b.date} ${b.start} — PayPal order ${b.order.id}`); await refresh(); });
+$('seed').onclick = busy($('seed'), '🤖 Booking…', async () => { await api('/api/demo/seed', { method: 'POST' }); await refresh(); });
+$('chase').onclick = busy($('chase'), '🤖 Drafting…', async () => { const r = await api('/api/agent/chase', { method: 'POST' }); showReminders(r); toast(r.length ? `Drafted ${r.length} reminder(s)` : 'Everyone has paid 🎉'); });
 $('grid').addEventListener('click', async e => {
   const a = e.target.closest('a[data-act]'); if (!a) return; e.preventDefault();
   if (a.dataset.act === 'capture') { await api(`/api/bookings/${a.dataset.id}/capture`, { method: 'POST' }); toast('Payment captured'); refresh(); }

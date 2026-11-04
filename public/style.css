@@ -10,3 +10,6 @@ main{padding:0 24px 24px;display:grid;gap:14px}.cal{height:520px;background:#fff
 .toast{position:fixed;right:20px;bottom:20px;background:#1b2430;color:#fff;padding:10px 14px;border-radius:8px;max-width:420px;z-index:9999}
 footer{color:#6b7785;font-size:12px;padding:0 24px 24px}a{color:#0070ba}
 .pill{padding:2px 8px;border-radius:10px;font-size:12px}.pill.paid{background:#e3f4e5;color:#2e7d32}.pill.unpaid{background:#fff1e0;color:#ef6c00}
+button:disabled{opacity:.75;cursor:progress}
+.stats{position:sticky;top:0;z-index:20;background:#f6f8fb;padding-top:8px;padding-bottom:8px}
+.stats{box-shadow:0 6px 8px -6px rgba(0,0,0,.18)}

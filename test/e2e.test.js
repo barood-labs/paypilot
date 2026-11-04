@@ -26,9 +26,9 @@ test('mock mode: book -> calendar data -> reschedule -> remind -> pay -> summary
     assert.match(ret.url, /\?paid=MOCK-/);
     const list = (await j(base, '/api/bookings')).body; assert.equal(list[0].paid, true);
     await j(base, '/api/demo/seed', { method: 'POST' });
-    const chase = (await j(base, '/api/agent/chase', { method: 'POST' })).body; assert.equal(chase.length, 4);
+    const chase = (await j(base, '/api/agent/chase', { method: 'POST' })).body; assert.equal(chase.length, 3); // seed skips Alice (already booked);
     const cap = (await j(base, '/api/bookings/2/capture', { method: 'POST' })).body; assert.equal(cap.paid, true);
-    const sum = (await j(base, '/api/summary')).body; assert.equal(sum.count, 5); assert.equal(sum.paid, '160.00'); assert.equal(sum.unpaid, '235.00');
+    const sum = (await j(base, '/api/summary')).body; assert.equal(sum.count, 4); assert.equal(sum.paid, '200.00'); assert.equal(sum.unpaid, '115.00');
     const page = await j(base, '/'); assert.match(page.body, /PayPilot/);
     const bry = await fetch(base + '/vendor/bryntum/calendar.module.js', { method: 'HEAD' }); assert.equal(bry.status, 200);
   } finally { s.close(); }

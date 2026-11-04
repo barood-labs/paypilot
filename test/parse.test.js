@@ -42,3 +42,12 @@ test('llmParse uses LLM output and falls back on errors', async () => {
   assert.equal(b.parser, 'rules'); assert.equal(b.amount, '120.00');
   delete process.env.OPENAI_API_KEY;
 });
+
+test('llmParse resolves the day phrase deterministically and keeps keyword categories', async () => {
+  const NOW2 = new Date(2026, 10, 3, 18); // Tue Nov 3 2026
+  const fake = async () => ({ json: async () => ({ choices: [{ message: { content: JSON.stringify({ service: 'Gutter cleaning', client: 'Johnsons', amount: 150, minutes: 90, when: 'next thursday', start: '14:00', category: 'Cleaning' }) } }] }) });
+  process.env.OPENAI_API_KEY = 'test';
+  const a = await llmParse('gutter cleaning at the Johnsons next thursday around 2, 150 bucks', NOW2, fake);
+  delete process.env.OPENAI_API_KEY;
+  assert.equal(a.date, '2026-11-05'); assert.equal(a.hours, 1.5); assert.equal(a.category, 'Outdoor'); assert.equal(a.start, '14:00');
+});

@@ -40,6 +40,7 @@ In mock mode the pay link opens a local "Mock PayPal checkout" page so you can t
    ```
    - `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` switch on sandbox Orders v2.
    - `OPENAI_API_KEY` (plus optional `OPENAI_BASE_URL` / `OPENAI_MODEL`) switches on the LLM parser and reminder agent.
+     Runs fully local too: with [Ollama](https://ollama.com) use `OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://localhost:11434/v1 OPENAI_MODEL=qwen2.5:3b`. The model extracts the fields and the day phrase ("next thursday"); PayPilot's deterministic resolver does the calendar math, so even a 3B model books the right date.
 3. Book a job, open the pay link, and log in with a sandbox **personal** account. You'll come back to PayPilot with the payment captured and the row turned green.
 
 The header badges show the active modes (`PayPal: mock|sandbox`, `AI: rules|llm`). No live PayPal endpoint is used unless you explicitly set `PAYPAL_API_BASE`.

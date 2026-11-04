@@ -82,7 +82,7 @@ export function createApp({ now = () => new Date() } = {}) {
   app.post('/api/demo/seed', async (req, res) => {
     const samples = ['Lawn mowing for Alice Chen 2h Friday at 10am $80', 'Deep clean for Marco Diaz 3 hours tomorrow at 1pm $120',
       'Math tutoring for Priya 1h Wednesday at 5pm $45', 'Mount TV for Sam Lee 90 min Saturday at 11am $70'];
-    const out = []; for (const s of samples) out.push(await book(s, req));
+    const out = []; for (const s of samples) if (!bookings.some(b => s.includes(b.client))) out.push(await book(s, req)); // skip clients already booked
     res.json(out);
   });
   app.use((err, _q, res, _n) => { console.error(err); res.status(500).json({ error: err.message }); });
