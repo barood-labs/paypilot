@@ -20,6 +20,7 @@ const isPaid = b => b.order?.status === 'COMPLETED';
 
 export function createApp({ now = () => new Date() } = {}) {
   const app = express();
+  app.set('trust proxy', true); // correct https:// pay links behind HF Spaces / Render proxies
   const bookings = [];
   let nextId = 1;
   app.use(express.json({ limit: '20kb' }));

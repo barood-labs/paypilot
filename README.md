@@ -7,6 +7,11 @@
 
 Built for the **PayPal AI Hackathon 2026** for freelancers and small service businesses (lawn care, cleaners, tutors, handymen) who still run their week on texts, paper and "did you Venmo me?".
 
+## 🔴 Live demo: https://barood-labs.github.io/paypilot/
+
+Free hosted demo in **mock mode**: no PayPal keys and no secrets. It uses the rule-based parser. Click **Load demo jobs**, open a **Pay link**, approve the mock checkout and watch the job turn green, then hit **Chase unpaid**. The demo is static (GitHub Pages). The same parser and booking/capture logic run in your browser and your data stays in localStorage. Add `?reset` to the URL to start over. For the full server (real PayPal sandbox + LLM), run it locally or use the included `Dockerfile` (listens on port 7860, ready for Hugging Face Docker Spaces).
+Rebuild/deploy: `node scripts/build-static.mjs`, push `dist/` to the `gh-pages` branch. Check it with `node scripts/smoke-hosted.mjs <url>`.
+
 ![PayPilot screenshot](docs/screenshot.png)
 
 ## What it does
